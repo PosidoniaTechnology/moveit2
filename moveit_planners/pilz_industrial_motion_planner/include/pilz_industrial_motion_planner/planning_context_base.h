@@ -128,7 +128,21 @@ bool pilz_industrial_motion_planner::PlanningContextBase<GeneratorT>::solve(plan
       moveit::core::robotStateToRobotStateMsg(getPlanningScene()->getCurrentState(), current_state);
       request_.start_state = current_state;
     }
-    bool result = generator_.generate(getPlanningScene(), request_, res);
+    double sampling_time = 0.1;
+    if(!request_.path_constraints.joint_constraints.empty()){
+        auto it = std::find_if(request_.path_constraints.joint_constraints.begin(),
+                               request_.path_constraints.joint_constraints.end(),
+                     [](const moveit_msgs::msg::JointConstraint& constraint){
+            if (constraint.joint_name == "sampling_time"){
+                return true;
+            }
+        });
+
+        if (it != request_.path_constraints.joint_constraints.end()){
+            sampling_time = it->weight;
+        }
+    }
+    bool result = generator_.generate(getPlanningScene(), request_, res, sampling_time);
     return result;
     // res.error_code_.val = moveit_msgs::msg::MoveItErrorCodes::INVALID_MOTION_PLAN;
     // return false; // TODO
