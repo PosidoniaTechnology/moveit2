@@ -149,29 +149,40 @@ void TrajectoryGeneratorLIN::plan(const planning_scene::PlanningSceneConstPtr& s
                                   const planning_interface::MotionPlanRequest& req, const MotionPlanInfo& plan_info,
                                   const double& sampling_time, trajectory_msgs::msg::JointTrajectory& joint_trajectory)
 {
+  const auto count = req.num_planning_attempts;
+  const auto initial_sampling_time = sampling_time;
+  const double initial_scaling = 2.0;
+
   // create Cartesian path for lin
   std::unique_ptr<KDL::Path> path(setPathLIN(plan_info.start_pose, plan_info.goal_pose));
 
-  // create velocity profile
-  std::unique_ptr<KDL::VelocityProfile> vp(
-      cartesianTrapVelocityProfile(req.max_velocity_scaling_factor, req.max_acceleration_scaling_factor, path));
+  for (int i = 0; i < count; i++) {
+      const double scaling = (static_cast<double>(i) + 1 ) * initial_scaling;
+      const auto step_max_velocity_scaling_factor = req.max_velocity_scaling_factor / scaling;
+      const auto step_acceleration_scaling_factor = req.max_acceleration_scaling_factor / scaling;
+      const auto step_sampling_time = initial_sampling_time * scaling;
+      const bool is_last_step = (i == count - 1);
+      // create velocity profile
+      std::unique_ptr<KDL::VelocityProfile> vp(
+              cartesianTrapVelocityProfile(step_max_velocity_scaling_factor, step_acceleration_scaling_factor, path));
 
-  // combine path and velocity profile into Cartesian trajectory
-  // with the third parameter set to false, KDL::Trajectory_Segment does not
-  // take
-  // the ownship of Path and Velocity Profile
-  KDL::Trajectory_Segment cart_trajectory(path.get(), vp.get(), false);
+      // combine path and velocity profile into Cartesian trajectory
+      // with the third parameter set to false, KDL::Trajectory_Segment does not
+      // take
+      // the ownship of Path and Velocity Profile
+      KDL::Trajectory_Segment cart_trajectory(path.get(), vp.get(), false);
 
-  moveit_msgs::msg::MoveItErrorCodes error_code;
-  // sample the Cartesian trajectory and compute joint trajectory using inverse
-  // kinematics
-  if (!generateJointTrajectory(scene, planner_limits_.getJointLimitContainer(), cart_trajectory, plan_info.group_name,
-                               plan_info.link_name, plan_info.start_joint_position, sampling_time, joint_trajectory,
-                               error_code))
-  {
-    std::ostringstream os;
-    os << "Failed to generate valid joint trajectory from the Cartesian path";
-    throw LinTrajectoryConversionFailure(os.str(), error_code.val);
+      moveit_msgs::msg::MoveItErrorCodes error_code;
+      // sample the Cartesian trajectory and compute joint trajectory using inverse
+      // kinematics
+      if (is_last_step && !generateJointTrajectory(scene, planner_limits_.getJointLimitContainer(), cart_trajectory,
+                                                   plan_info.group_name,
+                                                   plan_info.link_name, plan_info.start_joint_position, step_sampling_time, joint_trajectory,
+                                                   error_code)) {
+          std::ostringstream os;
+          os << "Failed to generate valid joint trajectory from the Cartesian path";
+          throw LinTrajectoryConversionFailure(os.str(), error_code.val);
+      }
   }
 }
 
