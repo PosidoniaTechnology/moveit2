@@ -109,7 +109,7 @@ void CollisionCheck::run()
 
   collision_result_.clear();
   // Self-collisions and scene collisions are checked separately so different thresholds can be used
-  getLockedPlanningSceneRO()->getCollisionEnvUnpadded()->checkSelfCollision(
+  getLockedPlanningSceneRO()->getCollisionEnv()->checkSelfCollision(
       collision_request_, collision_result_, *current_state_, getLockedPlanningSceneRO()->getAllowedCollisionMatrix());
   self_collision_distance_ = collision_result_.distance;
   collision_detected_ |= collision_result_.collision;

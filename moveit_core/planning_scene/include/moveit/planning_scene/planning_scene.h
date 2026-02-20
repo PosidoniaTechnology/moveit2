@@ -450,8 +450,8 @@ public:
   void checkSelfCollision(const collision_detection::CollisionRequest& req, collision_detection::CollisionResult& res,
                           const moveit::core::RobotState& robot_state) const
   {
-    // do self-collision checking with the unpadded version of the robot
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, getAllowedCollisionMatrix());
+    // do self-collision checking with the padded version of the robot
+    getCollisionEnv()->checkSelfCollision(req, res, robot_state, getAllowedCollisionMatrix());
   }
 
   /** \brief Check whether a specified state (\e robot_state) is in self collision, with respect to a given
@@ -470,8 +470,8 @@ public:
                           const moveit::core::RobotState& robot_state,
                           const collision_detection::AllowedCollisionMatrix& acm) const
   {
-    // do self-collision checking with the unpadded version of the robot
-    getCollisionEnvUnpadded()->checkSelfCollision(req, res, robot_state, acm);
+    // do self-collision checking with the padded version of the robot
+    getCollisionEnv()->checkSelfCollision(req, res, robot_state, acm);
   }
 
   /** \brief Get the names of the links that are involved in collisions for the current state */
