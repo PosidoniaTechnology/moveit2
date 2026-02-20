@@ -70,7 +70,10 @@ public:
   void renderPlanningScene(const planning_scene::PlanningSceneConstPtr& scene,
                            const Ogre::ColourValue& default_scene_color,
                            const Ogre::ColourValue& default_attached_color, OctreeVoxelRenderMode voxel_render_mode,
-                           OctreeVoxelColorMode voxel_color_mode, float default_scene_alpha);
+                           OctreeVoxelColorMode voxel_color_mode, float default_scene_alpha,
+                           bool show_padded_robot = false,
+                           const Ogre::ColourValue& padded_robot_color = Ogre::ColourValue(1.0f, 0.5f, 0.0f),
+                           float padded_robot_alpha = 0.5f);
   void clear();
 
 private:

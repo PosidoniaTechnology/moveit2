@@ -75,7 +75,9 @@ void PlanningSceneRender::renderPlanningScene(const planning_scene::PlanningScen
                                               const Ogre::ColourValue& default_env_color,
                                               const Ogre::ColourValue& default_attached_color,
                                               OctreeVoxelRenderMode octree_voxel_rendering,
-                                              OctreeVoxelColorMode octree_color_mode, float default_scene_alpha)
+                                              OctreeVoxelColorMode octree_color_mode, float default_scene_alpha,
+                                              bool show_padded_robot, const Ogre::ColourValue& padded_robot_color,
+                                              float padded_robot_alpha)
 {
   if (!scene)
     return;
@@ -116,6 +118,34 @@ void PlanningSceneRender::renderPlanningScene(const planning_scene::PlanningScen
       render_shapes_->renderShape(planning_scene_geometry_node_, object->shapes_[j].get(),
                                   object->global_shape_poses_[j], octree_voxel_rendering, octree_color_mode, color,
                                   alpha);
+    }
+  }
+
+  if (show_padded_robot && scene_robot_)
+  {
+    const collision_detection::CollisionEnvConstPtr& cenv = scene->getCollisionEnv();
+    moveit::core::RobotState padded_rs(scene->getCurrentState());
+    padded_rs.update();
+
+    for (const moveit::core::LinkModel* link : scene->getRobotModel()->getLinkModels())
+    {
+      const std::vector<shapes::ShapeConstPtr>& link_shapes = link->getShapes();
+      if (link_shapes.empty())
+        continue;
+
+      const EigenSTL::vector_Isometry3d& origin_transforms = link->getCollisionOriginTransforms();
+      const Eigen::Isometry3d& link_tf = padded_rs.getGlobalLinkTransform(link);
+      const double padding = cenv->getLinkPadding(link->getName());
+      const double scale = cenv->getLinkScale(link->getName());
+
+      for (std::size_t j = 0; j < link_shapes.size(); ++j)
+      {
+        shapes::ShapePtr padded_shape(link_shapes[j]->clone());
+        padded_shape->scaleAndPadd(scale, padding);
+        const Eigen::Isometry3d global_pose = link_tf * origin_transforms[j];
+        render_shapes_->renderShape(planning_scene_geometry_node_, padded_shape.get(), global_pose,
+                                    octree_voxel_rendering, octree_color_mode, padded_robot_color, padded_robot_alpha);
+      }
     }
   }
 }

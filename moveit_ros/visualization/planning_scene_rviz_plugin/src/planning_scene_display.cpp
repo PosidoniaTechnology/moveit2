@@ -143,6 +143,17 @@ PlanningSceneDisplay::PlanningSceneDisplay(bool listen_to_planning_scene, bool s
         "displayed as defined for collision detection purposes.",
         robot_category_, SLOT(changedSceneRobotCollisionEnabled()), this);
 
+    scene_robot_padded_collision_enabled_property_ = new rviz_common::properties::BoolProperty(
+        "Show Padded Robot Collision", false,
+        "Indicates whether the padded robot collision bodies (with planning safety margins applied) "
+        "should be displayed. Padding values are read from the active collision environment.",
+        robot_category_, SLOT(changedSceneRobotPaddedCollisionEnabled()), this);
+
+    padded_body_color_property_ = new rviz_common::properties::ColorProperty(
+        "Padded Body Color", QColor(255, 128, 0),
+        "The color used to display the padded collision bodies.", robot_category_,
+        SLOT(changedSceneRobotPaddedCollisionEnabled()), this);
+
     robot_alpha_property_ =
         new rviz_common::properties::FloatProperty("Robot Alpha", 1.0f, "Specifies the alpha for the robot links",
                                                    robot_category_, SLOT(changedRobotSceneAlpha()), this);
@@ -159,6 +170,8 @@ PlanningSceneDisplay::PlanningSceneDisplay(bool listen_to_planning_scene, bool s
     robot_category_ = nullptr;
     scene_robot_visual_enabled_property_ = nullptr;
     scene_robot_collision_enabled_property_ = nullptr;
+    scene_robot_padded_collision_enabled_property_ = nullptr;
+    padded_body_color_property_ = nullptr;
     robot_alpha_property_ = nullptr;
     attached_body_color_property_ = nullptr;
   }
@@ -357,10 +370,21 @@ void PlanningSceneDisplay::renderPlanningScene()
     const planning_scene_monitor::LockedPlanningSceneRO& ps = getPlanningSceneRO();
     if (planning_scene_needs_render_)
     {
+      bool show_padded =
+          scene_robot_padded_collision_enabled_property_ && scene_robot_padded_collision_enabled_property_->getBool();
+      Ogre::ColourValue padded_color(1.0f, 0.5f, 0.0f);
+      if (padded_body_color_property_)
+      {
+        QColor c = padded_body_color_property_->getColor();
+        padded_color.r = c.redF();
+        padded_color.g = c.greenF();
+        padded_color.b = c.blueF();
+      }
+      const float padded_alpha = robot_alpha_property_ ? robot_alpha_property_->getFloat() : 0.5f;
       planning_scene_render_->renderPlanningScene(
           ps, env_color, attached_color, static_cast<OctreeVoxelRenderMode>(octree_render_property_->getOptionInt()),
           static_cast<OctreeVoxelColorMode>(octree_coloring_property_->getOptionInt()),
-          scene_alpha_property_->getFloat());
+          scene_alpha_property_->getFloat(), show_padded, padded_color, padded_alpha);
     }
     else
     {
@@ -436,6 +460,12 @@ void PlanningSceneDisplay::changedSceneRobotCollisionEnabled()
     planning_scene_robot_->setCollisionVisible(scene_robot_collision_enabled_property_->getBool());
     planning_scene_needs_render_ = true;
   }
+}
+
+void PlanningSceneDisplay::changedSceneRobotPaddedCollisionEnabled()
+{
+  if (isEnabled())
+    planning_scene_needs_render_ = true;
 }
 
 void PlanningSceneDisplay::changedSceneEnabled()
