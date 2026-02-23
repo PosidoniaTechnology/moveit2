@@ -1558,13 +1558,37 @@ void PlanningSceneMonitor::configureDefaultPadding()
   node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_robot_scale", default_robot_scale_, 1.0);
   node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_object_padding", default_object_padd_, 0.0);
   node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_attached_padding", default_attached_padd_, 0.0);
+  // Per-link padding and scale.
+  // ROS2 does not support std::map<string,double> as a parameter type directly.
+  // Instead, declare the link names as a string array, then read each link's
+  // padding/scale as individual double parameters:
+  //
+  //   robot_description_planning:
+  //     default_robot_links: [forearm_link, wrist_3_link]
+  //     default_robot_link_padding:
+  //       forearm_link: 0.001
+  //       wrist_3_link: 0.0
+  //     default_robot_link_scale:
+  //       forearm_link: 0.99
+  //
   default_robot_link_padd_ = std::map<std::string, double>();
   default_robot_link_scale_ = std::map<std::string, double>();
-  // TODO: enable parameter type support to std::map
-  // node_->get_parameter_or(robot_description + "_planning/default_robot_link_padding", default_robot_link_padd_,
-  //           std::map<std::string, double>());
-  // node_->get_parameter_or(robot_description + "_planning/default_robot_link_scale", default_robot_link_scale_,
-  //           std::map<std::string, double>());
+
+  std::vector<std::string> default_robot_links;
+  node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_robot_links", default_robot_links,
+                          std::vector<std::string>());
+  for (const auto& link_name : default_robot_links)
+  {
+    double padd = default_robot_padd_;
+    node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_robot_link_padding." + link_name, padd,
+                            default_robot_padd_);
+    default_robot_link_padd_[link_name] = padd;
+
+    double scale = default_robot_scale_;
+    node_->get_parameter_or(ROBOT_DESCRIPTION + "_planning.default_robot_link_scale." + link_name, scale,
+                            default_robot_scale_);
+    default_robot_link_scale_[link_name] = scale;
+  }
 
   RCLCPP_DEBUG_STREAM(LOGGER, "Loaded " << default_robot_link_padd_.size() << " default link paddings");
   RCLCPP_DEBUG_STREAM(LOGGER, "Loaded " << default_robot_link_scale_.size() << " default link scales");
